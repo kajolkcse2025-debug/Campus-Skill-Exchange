@@ -1,0 +1,7 @@
+data/
+bin/
+out/
+out-active/
+reports/
+*.class
+sources.txt
