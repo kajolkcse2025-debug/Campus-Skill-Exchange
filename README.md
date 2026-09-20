@@ -4,8 +4,179 @@ A desktop application where students on a campus teach each other. Every hour yo
 teach earns credits, and those credits are what you spend to learn something from
 someone else. No money changes hands, only time.
 
-Written in plain **Java 21 + Swing**. No external libraries, no database server,
-no build tool required.
+<div align="center">
+
+# 🎓 Campus Skill Exchange & Credit System
+
+**Teach what you know. Learn what you don't.**
+**Every hour you teach pays for an hour you learn — no money, ever.**
+
+![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
+![Swing](https://img.shields.io/badge/UI-Java%20Swing-4C8BF5?style=flat-square)
+![Dependencies](https://img.shields.io/badge/dependencies-none-1F9A66?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)
+
+![Dashboard preview](screenshots/02-dashboard.png)
+
+</div>
+
+## What this is
+
+A desktop application that turns informal peer tutoring into a fair, trackable
+economy. Students list the skills they can teach, request sessions from
+classmates who can teach *them*, and every session moves credits instead of
+cash — teach a session and you're paid in credits; learn one and you spend
+them. Eight modules cover the full loop: accounts, skill listings, session
+scheduling, the credit ledger, ratings, a campus leaderboard with badges,
+admin reporting, and the storage layer underneath all of it.
+
+Built entirely in **Java 21 + Swing** — no framework, no database server, no
+build tool. Every chart, icon, avatar and the login-screen illustration is
+hand-painted with `Graphics2D`; there isn't a single image asset in the repo.
+
+---
+
+## Quick start
+
+```bash
+git clone <this-repo-url>
+cd CampusSkillExchange
+
+# build and run
+sh run.sh          # macOS / Linux
+run.bat             # Windows
+```
+
+Or by hand:
+
+```bash
+javac -d out $(find src -name "*.java")
+java -cp out Main
+```
+
+The first run seeds a demo campus — 11 accounts, 20 skills, 37 sessions and
+the credit history behind them — into a `data/` folder next to the jar.
+Delete `data/` to reset and reseed.
+
+**Try it with:**
+
+| Role | Email | Password |
+|---|---|---|
+| Student | `aarav@campus.edu` | `pass123` |
+| Any other student | `divya@campus.edu`, `rahul@campus.edu`, `sneha@campus.edu` … | `pass123` |
+| Administrator | `admin@campus.edu` | `admin123` |
+
+A headless check that doesn't open a window:
+
+```bash
+java -cp out Main --selftest
+```
+
+---
+
+## Screenshots
+
+<table>
+<tr>
+<td width="50%"><img src="screenshots/01-login.png"><br><sub>Sign in — the network graphic is hand-painted, not an image file</sub></td>
+<td width="50%"><img src="screenshots/03-browse.png"><br><sub>Browse skills, with live search and filters</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="screenshots/05-sessions.png"><br><sub>Session requests waiting for a response</sub></td>
+<td width="50%"><img src="screenshots/06-credits.png"><br><sub>The credit passbook — every earn and spend, with a running balance</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="screenshots/07-leaderboard.png"><br><sub>Campus leaderboard, podium and achievement badges</sub></td>
+<td width="50%"><img src="screenshots/10-admin-console.png"><br><sub>Administrator console — students, skills and sessions</sub></td>
+</tr>
+</table>
+
+---
+
+## How the credit economy works
+
+| Event | Credits |
+|---|---|
+| Joining the platform | **+60** welcome bonus |
+| Teaching a session | **+**the price the teacher set (5–25) |
+| Teaching bonus, every completed session | **+5** |
+| Receiving a five-star review | **+3** |
+| Attending a session | **−**the price of that skill |
+| A scheduled session is cancelled | full refund to the learner |
+
+A learner can never send a request they can't afford, and the charge only
+happens when a session is actually marked complete — so nobody pays for a
+session that never ran, and nobody can end up with a negative balance.
+
+---
+
+## Architecture
+
+```
+Swing UI  ──►  Service Layer  ──►  Domain Model  ──►  Database
+(ui/)          (service/)          (model/)           (data/)
+
+   login, dashboard,   every business    User, Skill,    in-memory lists,
+   browse, sessions,   rule lives here   Session,        saved to
+   credits, admin …    — the UI never    Transaction,    pipe-delimited
+                   touches storage  Feedback        text files
+                   directly
+```
+
+Only `Database.load()` / `Database.save()` know that persistence is a text
+file — swapping in JDBC and a real database means rewriting those two
+methods and nothing else.
+
+| Module | Key classes | What it does |
+|---|---|---|
+| User management | `AuthService`, `LoginFrame`, `ProfilePanel` | Registration, sign-in, profile & password edits |
+| Skill management | `SkillService`, `MySkillsPanel`, `BrowsePanel` | Add, edit, retire and search skills by category/level |
+| Learning sessions | `SessionService`, `SessionsPanel` | Request → accept & schedule → complete / cancel |
+| Credit system | `CreditService`, `CreditRules`, `CreditsPanel` | The ledger — every balance change, fully auditable |
+| Feedback & rating | `FeedbackService` | Two-way star reviews, teacher & skill averages |
+| Leaderboard & badges | `LeaderboardService`, `LeaderboardPanel` | All-time / monthly ranking, 8 achievement badges |
+| Reports | `ReportService`, `ReportsPanel` | Activity, credit and popular-skill reports |
+| Database | `Database`, `Seed` | Load/save every entity, seed a demo campus |
+
+---
+
+## Project structure
+
+```
+CampusSkillExchange/
+├── src/
+│   ├── Main.java              entry point + --selftest
+│   ├── util/                  hashing, date helpers
+│   ├── model/                 User, Skill, LearningSession, CreditTransaction, Feedback, Badge
+│   ├── data/                  Database (file-backed store) + Seed
+│   ├── service/               business rules — the only thing the UI ever calls
+│   └── ui/                    every Swing screen, theme, icons, hand-painted charts
+├── screenshots/                a look at every screen, for anyone not running it locally
+├── run.sh / run.bat
+└── README.md
+```
+
+---
+
+## Why no database, no framework?
+
+The whole point was demonstrating that a small, dependency-free Java program
+can model and enforce a fair economy end to end — so the persistence layer
+is intentionally a hand-written flat-file store rather than JDBC + MySQL. It's
+kept behind one class specifically so that swap is a follow-up, not a
+rewrite. See **Roadmap** below.
+
+## Roadmap
+
+- [ ] Swap the flat-file store for JDBC + MySQL/PostgreSQL
+- [ ] Add a JUnit suite for the service layer
+- [ ] Client–server mode for multiple students at once
+- [ ] Email / in-app notifications for session requests
+- [ ] A companion mobile app for browsing and requests
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 ---
 
